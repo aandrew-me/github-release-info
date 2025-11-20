@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Github Release Info</title>
+    <title>Release Inspector</title>
+
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%232563eb'/><path d='M50 25 V75 M25 50 L50 75 L75 50' stroke='white' stroke-width='12' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -18,6 +22,7 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
+        /* Dark Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -36,6 +41,7 @@
             background: #475569;
         }
 
+        /* Animations */
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -78,10 +84,11 @@
         <div class="text-center mb-10">
             <div
                 class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-2xl mb-4 shadow-lg shadow-blue-900/50">
-                <i class="fa-brands fa-github"></i>
+                <i class="fa-solid fa-box-open"></i>
             </div>
-            <h1 class="text-3xl md:text-5xl font-bold text-white mb-3 tracking-tight">Github Release Info</h1>
-            <p class="text-slate-400 text-sm md:text-base max-w-lg mx-auto">Enter a GitHub Release URL to get info</p>
+            <h1 class="text-3xl md:text-5xl font-bold text-white mb-3 tracking-tight">Release Inspector</h1>
+            <p class="text-slate-400 text-sm md:text-base max-w-lg mx-auto">Enter a GitHub Release URL to view asset
+                stats and copy integrity hashes.</p>
         </div>
 
         <div
@@ -94,10 +101,16 @@
                     class="w-full bg-slate-950/50 border border-slate-700 text-slate-200 placeholder-slate-500 pl-10 pr-4 py-3.5 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     autocomplete="off">
             </div>
-            <button onclick="fetchData()"
-                class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-900/30 active:scale-95 flex items-center justify-center gap-2">
-                <span>Analyze</span>
-            </button>
+            <div class="flex gap-2">
+                <button onclick="fetchData(true)"
+                    class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-900/30 active:scale-95 flex-1 md:flex-none flex items-center justify-center gap-2">
+                    <span>Analyze</span>
+                </button>
+                <button onclick="shareUrl()" id="shareBtn" title="Copy Link to this Analysis"
+                    class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 py-3.5 px-4 rounded-xl transition-all active:scale-95 hidden">
+                    <i class="fa-solid fa-share-nodes"></i>
+                </button>
+            </div>
         </div>
 
         <div id="errorContainer"
@@ -172,6 +185,17 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlParam = params.get('url');
+
+            if (urlParam) {
+                document.getElementById('urlInput').value = urlParam;
+                fetchData(false);
+            }
+        });
+
+
         function formatBytes(bytes, decimals = 2) {
             if (!+bytes) return '0 B';
             const k = 1024;
@@ -181,26 +205,48 @@
             return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
         }
 
-        // Copy to clipboard
-        async function copyHash(text, btnId) {
+        async function copyToClipboard(text, btnElement, successHtml = '<i class="fa-solid fa-check"></i>') {
             try {
                 await navigator.clipboard.writeText(text);
-                const btn = document.getElementById(btnId);
+                const originalHtml = btnElement.innerHTML;
+                const originalClasses = btnElement.className;
+
+                btnElement.innerHTML = successHtml;
+                btnElement.classList.add('text-emerald-400', 'border-emerald-400');
+
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.className = originalClasses; // Restore original classes
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+        }
+
+        async function copyHash(text, btnId) {
+            const btn = document.getElementById(btnId);
+            const successMsg = '<i class="fa-solid fa-check"></i> Copied';
+
+            try {
+                await navigator.clipboard.writeText(text);
                 const originalContent = btn.innerHTML;
 
-                // Visual feedback
                 btn.classList.remove('text-slate-400', 'hover:text-white');
                 btn.classList.add('text-emerald-400', 'bg-emerald-400/10', 'border-emerald-400/50');
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+                btn.innerHTML = successMsg;
 
                 setTimeout(() => {
                     btn.innerHTML = originalContent;
                     btn.classList.remove('text-emerald-400', 'bg-emerald-400/10', 'border-emerald-400/50');
                     btn.classList.add('text-slate-400', 'hover:text-white');
                 }, 2000);
-            } catch (err) {
-                console.error('Failed to copy', err);
-            }
+            } catch (e) { }
+        }
+
+        function shareUrl() {
+            const url = window.location.href;
+            const btn = document.getElementById('shareBtn');
+            copyToClipboard(url, btn, '<i class="fa-solid fa-check"></i>');
         }
 
         function parseUrl(url) {
@@ -214,26 +260,34 @@
             }
         }
 
-        async function fetchData() {
+        async function fetchData(updateHistory = true) {
             const input = document.getElementById('urlInput');
             const errorDiv = document.getElementById('errorContainer');
             const errorMsg = document.getElementById('errorMsg');
             const loader = document.getElementById('loader');
             const results = document.getElementById('results');
+            const shareBtn = document.getElementById('shareBtn');
 
-            // Reset UI
             errorDiv.classList.add('hidden');
             results.classList.add('hidden');
+            shareBtn.classList.add('hidden');
             loader.classList.remove('hidden');
             document.getElementById('tableBody').innerHTML = '';
 
-            const parsed = parseUrl(input.value.trim());
+            const rawUrl = input.value.trim();
+            const parsed = parseUrl(rawUrl);
 
             if (!parsed) {
                 loader.classList.add('hidden');
                 errorMsg.textContent = "Invalid URL. Please use format: https://github.com/owner/repo/releases/tag/v1.0.0";
                 errorDiv.classList.remove('hidden');
                 return;
+            }
+
+            if (updateHistory) {
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('url', rawUrl);
+                window.history.pushState({}, '', newUrl);
             }
 
             try {
@@ -246,7 +300,6 @@
 
                 const data = await response.json();
 
-                // Populate Stats
                 document.getElementById('avatar').src = data.author.avatar_url;
                 document.getElementById('repoName').textContent = `${parsed.owner}/${parsed.repo}`;
                 document.getElementById('tagName').textContent = data.tag_name;
@@ -255,17 +308,14 @@
                 const totalDl = data.assets.reduce((sum, asset) => sum + asset.download_count, 0);
                 document.getElementById('totalDownloads').textContent = totalDl.toLocaleString();
 
-                // Populate Table
                 const tbody = document.getElementById('tableBody');
 
                 data.assets.forEach((asset, index) => {
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-slate-800/50 transition group";
 
-                    // Unique ID for copy button
                     const btnId = `copy-btn-${index}`;
 
-                    // Handle Hash/Digest
                     let hashHtml = '<span class="text-slate-600 italic text-xs">No digest in metadata</span>';
 
                     if (asset.digest) {
@@ -314,6 +364,7 @@
 
                 loader.classList.add('hidden');
                 results.classList.remove('hidden');
+                shareBtn.classList.remove('hidden');
 
             } catch (err) {
                 loader.classList.add('hidden');
@@ -323,7 +374,7 @@
         }
 
         document.getElementById('urlInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') fetchData();
+            if (e.key === 'Enter') fetchData(true);
         });
     </script>
 </body>
