@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Github Release Info</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: { 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-950 min-h-screen text-slate-200 pb-20 selection:bg-blue-500 selection:text-white">
+
+    <div class="fixed inset-0 pointer-events-none overflow-hidden">
+        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600/10 rounded-full blur-[100px]"></div>
+    </div>
+
+    <div class="relative max-w-6xl mx-auto px-4 pt-10 md:pt-16">
+
+        <div class="text-center mb-10">
+            <div
+                class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-2xl mb-4 shadow-lg shadow-blue-900/50">
+                <i class="fa-brands fa-github"></i>
+            </div>
+            <h1 class="text-3xl md:text-5xl font-bold text-white mb-3 tracking-tight">Github Release Info</h1>
+            <p class="text-slate-400 text-sm md:text-base max-w-lg mx-auto">Enter a GitHub Release URL to get info</p>
+        </div>
+
+        <div
+            class="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 p-2 rounded-2xl shadow-2xl max-w-3xl mx-auto mb-10 flex flex-col md:flex-row gap-3">
+            <div class="flex-1 relative">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-link text-slate-500"></i>
+                </div>
+                <input type="text" id="urlInput" placeholder="https://github.com/user/repo/releases/tag/v1.0..."
+                    class="w-full bg-slate-950/50 border border-slate-700 text-slate-200 placeholder-slate-500 pl-10 pr-4 py-3.5 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                    autocomplete="off">
+            </div>
+            <button onclick="fetchData()"
+                class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-900/30 active:scale-95 flex items-center justify-center gap-2">
+                <span>Analyze</span>
+            </button>
+        </div>
+
+        <div id="errorContainer"
+            class="hidden max-w-3xl mx-auto mb-8 bg-red-900/20 border border-red-500/30 text-red-300 p-4 rounded-xl flex items-start gap-3 text-sm">
+            <i class="fa-solid fa-circle-exclamation text-red-500 mt-0.5"></i>
+            <span id="errorMsg">Error message here</span>
+        </div>
+
+        <div id="loader" class="hidden text-center py-20">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 mb-4"></i>
+            <p class="text-slate-500 animate-pulse text-sm">Talking to GitHub API...</p>
+        </div>
+
+        <div id="results" class="hidden animate-fade-in">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center gap-4 shadow-lg">
+                    <img id="avatar" src="" class="w-10 h-10 rounded-full border border-slate-700">
+                    <div class="min-w-0">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Repository</p>
+                        <h3 id="repoName" class="font-semibold text-white truncate">Repo</h3>
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-tag text-xs text-blue-400"></i>
+                            <p id="tagName" class="text-xs text-blue-400 font-mono">v1.0.0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center gap-4 shadow-lg">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-lg border border-emerald-500/20">
+                        <i class="fa-solid fa-download"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Total Downloads</p>
+                        <h3 id="totalDownloads" class="text-xl font-bold text-white">0</h3>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex items-center gap-4 shadow-lg">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center text-lg border border-purple-500/20">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Assets Found</p>
+                        <h3 id="assetCount" class="text-xl font-bold text-white">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-slate-950 border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
+                                <th class="p-4 min-w-[200px]">Asset Name</th>
+                                <th class="p-4">Size</th>
+                                <th class="p-4">Downloads</th>
+                                <th class="p-4 min-w-[250px]">Integrity Hash</th>
+                                <th class="p-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-800 text-sm">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function formatBytes(bytes, decimals = 2) {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        }
+
+        // Copy to clipboard
+        async function copyHash(text, btnId) {
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById(btnId);
+                const originalContent = btn.innerHTML;
+
+                // Visual feedback
+                btn.classList.remove('text-slate-400', 'hover:text-white');
+                btn.classList.add('text-emerald-400', 'bg-emerald-400/10', 'border-emerald-400/50');
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove('text-emerald-400', 'bg-emerald-400/10', 'border-emerald-400/50');
+                    btn.classList.add('text-slate-400', 'hover:text-white');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+        }
+
+        function parseUrl(url) {
+            try {
+                const regex = /github\.com\/([^/]+)\/([^/]+)\/releases\/tag\/([^/]+)/;
+                const match = url.match(regex);
+                if (match) return { owner: match[1], repo: match[2], tag: match[3] };
+                throw new Error("Invalid URL.");
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function fetchData() {
+            const input = document.getElementById('urlInput');
+            const errorDiv = document.getElementById('errorContainer');
+            const errorMsg = document.getElementById('errorMsg');
+            const loader = document.getElementById('loader');
+            const results = document.getElementById('results');
+
+            // Reset UI
+            errorDiv.classList.add('hidden');
+            results.classList.add('hidden');
+            loader.classList.remove('hidden');
+            document.getElementById('tableBody').innerHTML = '';
+
+            const parsed = parseUrl(input.value.trim());
+
+            if (!parsed) {
+                loader.classList.add('hidden');
+                errorMsg.textContent = "Invalid URL. Please use format: https://github.com/owner/repo/releases/tag/v1.0.0";
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const apiUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/releases/tags/${parsed.tag}`;
+                const response = await fetch(apiUrl);
+
+                if (!response.ok) {
+                    throw new Error(response.status === 404 ? "Release not found." : "GitHub API Error (Check rate limits).");
+                }
+
+                const data = await response.json();
+
+                // Populate Stats
+                document.getElementById('avatar').src = data.author.avatar_url;
+                document.getElementById('repoName').textContent = `${parsed.owner}/${parsed.repo}`;
+                document.getElementById('tagName').textContent = data.tag_name;
+                document.getElementById('assetCount').textContent = data.assets.length;
+
+                const totalDl = data.assets.reduce((sum, asset) => sum + asset.download_count, 0);
+                document.getElementById('totalDownloads').textContent = totalDl.toLocaleString();
+
+                // Populate Table
+                const tbody = document.getElementById('tableBody');
+
+                data.assets.forEach((asset, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/50 transition group";
+
+                    // Unique ID for copy button
+                    const btnId = `copy-btn-${index}`;
+
+                    // Handle Hash/Digest
+                    let hashHtml = '<span class="text-slate-600 italic text-xs">No digest in metadata</span>';
+
+                    if (asset.digest) {
+                        const parts = asset.digest.split(':');
+                        const algo = parts[0] ? parts[0].toUpperCase() : 'HASH';
+                        const hashVal = parts[1] || asset.digest;
+
+                        hashHtml = `
+                            <div class="flex flex-col items-start gap-1.5">
+                                <span class="text-[10px] font-bold bg-slate-800 text-slate-400 px-1.5 rounded border border-slate-700">${algo}</span>
+                                <div class="flex items-center gap-2 w-full max-w-[250px] md:max-w-md">
+                                    <code class="font-mono text-xs text-slate-300 truncate bg-slate-950 px-2 py-1 rounded border border-slate-800 flex-1">${hashVal}</code>
+                                    <button id="${btnId}" onclick="copyHash('${hashVal}', '${btnId}')" 
+                                        class="text-xs border border-slate-700 bg-slate-800 text-slate-400 hover:text-white hover:border-slate-600 px-2 py-1 rounded transition flex items-center gap-1 shrink-0">
+                                        <i class="fa-regular fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    tr.innerHTML = `
+                        <td class="p-4">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+                                    <i class="fa-regular fa-file"></i>
+                                </div>
+                                <span class="font-medium text-slate-200 break-all text-sm">${asset.name}</span>
+                            </div>
+                        </td>
+                        <td class="p-4 whitespace-nowrap font-mono text-slate-400 text-xs">${formatBytes(asset.size)}</td>
+                        <td class="p-4 whitespace-nowrap font-mono text-slate-400 text-xs">
+                            ${asset.download_count.toLocaleString()}
+                        </td>
+                        <td class="p-4">
+                            ${hashHtml}
+                        </td>
+                        <td class="p-4 text-right">
+                            <a href="${asset.browser_download_url}" class="inline-flex items-center gap-2 bg-slate-100 hover:bg-white text-slate-900 px-3 py-1.5 rounded-lg transition font-medium text-xs shadow hover:shadow-md hover:scale-105 transform">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                loader.classList.add('hidden');
+                results.classList.remove('hidden');
+
+            } catch (err) {
+                loader.classList.add('hidden');
+                errorMsg.textContent = err.message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('urlInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchData();
+        });
+    </script>
+</body>
+
+</html>
